@@ -125,3 +125,4 @@ julia --project=. -e 'using Pkg; Pkg.test()'
   （Sarashina.jl が `Retry-After` に従って自動再試行します）。
 - 音声はローカルの Julia サーバーから Sarashina API に送られます。機密性の高い音声の扱いに注意してください。
 - このアプリは SB Intuitions とは関係のない非公式のものです。
+# SarashinaHonyaku.jl
