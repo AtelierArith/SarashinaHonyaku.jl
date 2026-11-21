@@ -1,0 +1,24 @@
+name = "SarashinaHonyaku"
+uuid = "844fca2e-2ec8-44b6-b512-79b718475ae1"
+version = "0.1.0"
+authors = ["SatoshiTerasaki <terasakisatoshi.math@gmail.com>"]
+
+[deps]
+DotEnv = "4dc1fcf4-5e3b-5448-94ab-0c38ec0385c1"
+HTTP = "cd3eb016-35fb-5094-929b-558a96fad6f3"
+JSON = "682c06a0-de6a-54ab-a142-c8b1cf79cde6"
+Sarashina = "c95ce9fa-7772-446d-9379-6c97b2ee9e6c"
+
+[sources]
+Sarashina = {path = "/Users/atelierarith/work/atelierarith/Sarashina.jl"}
+
+[compat]
+HTTP = "2"
+JSON = "1"
+Sarashina = "0.1"
+
+[extras]
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+
+[targets]
+test = ["Test"]

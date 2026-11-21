@@ -1,0 +1,7 @@
+.env
+Manifest.toml
+*.wav
+!web/sample.wav
+*.m4a
+*.aiff
+.DS_Store

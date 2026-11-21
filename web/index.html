@@ -1,0 +1,640 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sarashina 音声翻訳</title>
+<style>
+  :root {
+    --bg: #0f1115;
+    --panel: #171a21;
+    --panel-2: #1e222b;
+    --border: #2b303b;
+    --text: #e7e9ee;
+    --muted: #8b93a3;
+    --accent: #6ea8fe;
+    --accent-2: #4c8dff;
+    --danger: #ff7b72;
+    --ok: #3fb950;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: var(--bg); color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+    line-height: 1.7;
+  }
+  header { padding: 28px 20px 8px; max-width: 920px; margin: 0 auto; }
+  h1 { font-size: 22px; margin: 0 0 4px; letter-spacing: .02em; }
+  .sub { margin: 0; color: var(--muted); font-size: 13px; }
+  main { max-width: 920px; margin: 0 auto; padding: 16px 20px 80px; }
+  .panel {
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: 12px; padding: 16px;
+  }
+  .controls { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+  button {
+    font: inherit; font-size: 14px; color: var(--text);
+    background: var(--panel-2); border: 1px solid var(--border);
+    border-radius: 8px; padding: 8px 16px; cursor: pointer;
+    transition: background .15s, border-color .15s, opacity .15s;
+  }
+  button:hover:not(:disabled) { background: #262b36; border-color: #3a4150; }
+  button:disabled { opacity: .45; cursor: not-allowed; }
+  button.primary { background: var(--accent-2); border-color: var(--accent-2); color: #fff; font-weight: 600; }
+  button.primary:hover:not(:disabled) { background: #3f7ff0; border-color: #3f7ff0; }
+  button.danger { color: var(--danger); }
+  .level {
+    flex: 1 1 140px; min-width: 120px; height: 8px;
+    background: #0b0d11; border-radius: 999px; overflow: hidden;
+  }
+  #levelbar {
+    height: 100%; width: 0%; border-radius: 999px;
+    background: linear-gradient(90deg, var(--ok), #d6c85a 70%, var(--danger));
+    transition: width .08s linear;
+  }
+  #status { font-size: 13px; color: var(--muted); min-width: 90px; }
+  #status.recording { color: var(--ok); }
+  #status.busy { color: var(--accent); }
+  #status.error { color: var(--danger); }
+  details.settings { margin-top: 12px; }
+  details.settings summary {
+    cursor: pointer; color: var(--muted); font-size: 13px; user-select: none;
+  }
+  .settings-grid {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 14px; margin-top: 12px;
+  }
+  .field { display: flex; flex-direction: column; gap: 6px; font-size: 12px; color: var(--muted); }
+  .field input[type="text"], .field select {
+    font: inherit; font-size: 14px; color: var(--text);
+    background: var(--panel-2); border: 1px solid var(--border);
+    border-radius: 6px; padding: 6px 10px;
+  }
+  .field input[type="range"] { width: 100%; }
+  .banner {
+    margin-top: 14px; padding: 10px 14px; border-radius: 8px;
+    background: #2a2113; border: 1px solid #5c4a1e; color: #e3c46b; font-size: 13px;
+  }
+  .banner code { color: #f0d58a; }
+  .notice {
+    margin-top: 10px; padding: 8px 14px; border-radius: 8px;
+    background: #131a24; border: 1px solid #29405c; color: #9dc0ea; font-size: 13px;
+  }
+  .field.checkbox { flex-direction: row; align-items: center; gap: 8px; }
+  .field.checkbox input { width: auto; }
+  .field .hint { font-size: 11px; color: #6d7787; }
+  .inline-field {
+    display: flex; align-items: center; gap: 6px;
+    font-size: 12px; color: var(--muted);
+  }
+  .inline-field select {
+    font: inherit; font-size: 13px; color: var(--text);
+    background: var(--panel-2); border: 1px solid var(--border);
+    border-radius: 8px; padding: 7px 10px; max-width: 230px;
+  }
+  .toolbar {
+    display: flex; justify-content: space-between; align-items: center;
+    margin: 22px 0 10px; color: var(--muted); font-size: 13px;
+  }
+  .toolbar .actions { display: flex; gap: 8px; }
+  .toolbar button { padding: 4px 10px; font-size: 12px; }
+  #entries { display: flex; flex-direction: column; gap: 12px; }
+  .entry {
+    background: var(--panel); border: 1px solid var(--border);
+    border-left: 3px solid var(--accent-2); border-radius: 10px; padding: 12px 16px;
+    animation: fadein .2s ease-out;
+  }
+  @keyframes fadein { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+  .entry .meta {
+    display: flex; justify-content: space-between; align-items: center;
+    color: var(--muted); font-size: 11px; margin-bottom: 4px;
+  }
+  .entry .meta button { padding: 2px 8px; font-size: 11px; }
+  .entry .ja { margin: 0 0 8px; font-size: 16px; }
+  .entry .en { margin: 0; font-size: 16px; color: var(--text); }
+  .empty { color: var(--muted); text-align: center; padding: 48px 0; font-size: 14px; }
+  .pending { color: var(--muted); font-size: 13px; padding: 8px 4px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Sarashina 音声翻訳</h1>
+  <p class="sub">日本語の音声を文字起こしして、英語に翻訳します（Sarashina API / ローカル動作）。</p>
+</header>
+
+<main>
+  <section class="panel">
+    <div class="controls">
+      <button id="start" class="primary">録音開始</button>
+      <button id="stop" disabled>停止</button>
+      <button id="split" disabled>区切る</button>
+      <button id="sample">サンプルで試す</button>
+      <label class="inline-field" title="初回はマイクを許可すると名前が表示されます">マイク
+        <select id="mic"><option value="">既定のマイク</option></select>
+      </label>
+      <div class="level"><div id="levelbar"></div></div>
+      <div id="status">待機中</div>
+    </div>
+
+    <details class="settings">
+      <summary>設定</summary>
+      <div class="settings-grid">
+        <label class="field">
+          固有名詞（任意・カンマ区切り）
+          <input id="keywords" type="text" value="RustCall.jl, JuliaCon, Julia, Sarashina" placeholder="例: 更級日記, Sarashina">
+        </label>
+        <label class="field">
+          無音とみなす音量: <span id="threshold-label">0.005</span>
+          <input id="threshold" type="range" min="0.002" max="0.05" step="0.001" value="0.005">
+        </label>
+        <label class="field">
+          区切る無音の長さ
+          <select id="gap">
+            <option value="0.5">0.5 秒</option>
+            <option value="0.8" selected>0.8 秒</option>
+            <option value="1.2">1.2 秒</option>
+            <option value="1.8">1.8 秒</option>
+          </select>
+        </label>
+        <label class="field checkbox">
+          <span><input id="auto-threshold" type="checkbox" checked> 開始時に周囲の音に合わせて自動調整</span>
+        </label>
+      </div>
+    </details>
+  </section>
+
+  <div id="banner" class="banner" hidden></div>
+  <div id="notice" class="notice" hidden></div>
+
+  <div class="toolbar">
+    <span>文字起こしと翻訳</span>
+    <div class="actions">
+      <button id="copy-all">すべてコピー</button>
+      <button id="clear" class="danger">クリア</button>
+    </div>
+  </div>
+  <section id="entries">
+    <div class="empty" id="empty">「録音開始」を押して日本語で話してください。発話の切れ目で自動的に区切って送信します。</div>
+  </section>
+</main>
+
+<script>
+(() => {
+  "use strict";
+
+  const $ = (id) => document.getElementById(id);
+  const RATE = 16000;
+  const MIN_SPEECH_SEC = 0.25;
+  const MAX_SEG_SEC = 10;
+
+  const ui = {
+    start: $("start"), stop: $("stop"), split: $("split"),
+    status: $("status"), level: $("levelbar"), banner: $("banner"),
+    entries: $("entries"), empty: $("empty"), clear: $("clear"),
+    copyAll: $("copy-all"), keywords: $("keywords"), sample: $("sample"),
+    threshold: $("threshold"), thresholdLabel: $("threshold-label"), gap: $("gap"),
+    autoThreshold: $("auto-threshold"), notice: $("notice"), mic: $("mic"),
+  };
+
+  const state = {
+    running: false,
+    ctx: null, stream: null, source: null, processor: null, sink: null,
+    chunks: [], segLen: 0, silenceLen: 0, speechLen: 0,
+    calibrating: false, calibRms: [], calibLen: 0,
+    silentSince: 0, hinted: false,
+    queue: 0, chain: Promise.resolve(), failure: false,
+  };
+
+  // ---------------------------------------------------------------- settings
+  ui.threshold.addEventListener("input", () => {
+    ui.thresholdLabel.textContent = Number(ui.threshold.value).toFixed(3);
+  });
+
+  // ---------------------------------------------------------------- UI helpers
+  function setStatus(text, cls) {
+    ui.status.textContent = text;
+    ui.status.className = cls || "";
+  }
+  function updateStatus() {
+    if (state.failure) return;
+    if (state.queue > 0) setStatus(`認識中… (${state.queue})`, "busy");
+    else if (state.calibrating) setStatus("マイクを調整中…", "busy");
+    else if (state.running) {
+      if (state.speechLen > 0) {
+        setStatus(`録音中 · 発話 ${(state.speechLen / RATE).toFixed(1)} 秒`, "recording");
+      } else {
+        setStatus("録音中 · 声を待っています", "recording");
+      }
+    } else setStatus("待機中", "");
+  }
+  function showBanner(html) {
+    ui.banner.innerHTML = html;
+    ui.banner.hidden = false;
+  }
+  function clearBanner() { ui.banner.hidden = true; }
+  function showNotice(text) {
+    ui.notice.textContent = text;
+    ui.notice.hidden = false;
+    clearTimeout(showNotice.timer);
+    showNotice.timer = setTimeout(() => { ui.notice.hidden = true; }, 5000);
+  }
+
+  function addEntry(data) {
+    ui.entries.querySelector(".empty")?.remove();
+    const el = document.createElement("article");
+    el.className = "entry";
+
+    const meta = document.createElement("div");
+    meta.className = "meta";
+    const time = document.createElement("time");
+    time.textContent = new Date().toLocaleTimeString("ja-JP");
+    const copy = document.createElement("button");
+    copy.textContent = "コピー";
+    copy.addEventListener("click", async () => {
+      await copyText(`${data.ja}\n\n${data.en}`);
+      copy.textContent = "コピー済み";
+      setTimeout(() => (copy.textContent = "コピー"), 1200);
+    });
+    meta.append(time, copy);
+
+    const ja = document.createElement("p");
+    ja.className = "ja";
+    ja.textContent = data.ja;
+    const en = document.createElement("p");
+    en.className = "en";
+    en.textContent = data.en;
+
+    el.append(meta, ja, en);
+    ui.entries.append(el);
+    el.scrollIntoView({ behavior: "smooth", block: "end" });
+  }
+
+  async function copyText(text) {
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch {
+      const ta = document.createElement("textarea");
+      ta.value = text;
+      document.body.append(ta);
+      ta.select();
+      document.execCommand("copy");
+      ta.remove();
+    }
+  }
+
+  // ---------------------------------------------------------------- audio utils
+  function downsample(input, inRate) {
+    if (inRate === RATE) return new Float32Array(input);
+    const ratio = inRate / RATE;
+    const outLen = Math.floor(input.length / ratio);
+    const out = new Float32Array(outLen);
+    for (let i = 0; i < outLen; i++) {
+      const start = Math.floor(i * ratio);
+      const end = Math.min(Math.floor((i + 1) * ratio), input.length);
+      let sum = 0;
+      for (let j = start; j < end; j++) sum += input[j];
+      out[i] = end > start ? sum / (end - start) : 0;
+    }
+    return out;
+  }
+
+  function encodeWav(samples) {
+    const buffer = new ArrayBuffer(44 + samples.length * 2);
+    const view = new DataView(buffer);
+    const writeStr = (offset, str) => {
+      for (let i = 0; i < str.length; i++) view.setUint8(offset + i, str.charCodeAt(i));
+    };
+    writeStr(0, "RIFF");
+    view.setUint32(4, 36 + samples.length * 2, true);
+    writeStr(8, "WAVE");
+    writeStr(12, "fmt ");
+    view.setUint32(16, 16, true);
+    view.setUint16(20, 1, true);
+    view.setUint16(22, 1, true);
+    view.setUint32(24, RATE, true);
+    view.setUint32(28, RATE * 2, true);
+    view.setUint16(32, 2, true);
+    view.setUint16(34, 16, true);
+    writeStr(36, "data");
+    view.setUint32(40, samples.length * 2, true);
+    let offset = 44;
+    for (let i = 0; i < samples.length; i++) {
+      const s = Math.max(-1, Math.min(1, samples[i]));
+      view.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7fff, true);
+      offset += 2;
+    }
+    return new Blob([view], { type: "audio/wav" });
+  }
+
+  // ---------------------------------------------------------------- segmentation
+  function resetSegment() {
+    state.chunks = [];
+    state.segLen = 0;
+    state.silenceLen = 0;
+    state.speechLen = 0;
+  }
+
+  function feed(samples) {
+    if (!state.running) return;
+
+    let sum = 0;
+    for (let i = 0; i < samples.length; i++) sum += samples[i] * samples[i];
+    const rms = Math.sqrt(sum / samples.length);
+    ui.level.style.width = Math.min(100, rms * 700) + "%";
+
+    // 開始直後は周囲の音を測り、閾値を自動調整する
+    if (state.calibrating) {
+      state.calibRms.push(rms);
+      state.calibLen += samples.length;
+      if (state.calibLen >= 0.7 * RATE && state.calibRms.length > 0) {
+        const noise = Math.min(...state.calibRms);
+        const auto = Math.min(0.03, Math.max(0.003, noise * 2.5));
+        ui.threshold.value = auto.toFixed(3);
+        ui.thresholdLabel.textContent = Number(ui.threshold.value).toFixed(3);
+        state.calibrating = false;
+        state.calibRms = [];
+        state.calibLen = 0;
+        resetSegment();
+        showNotice(`周囲の音に合わせて感度を自動調整しました（${ui.thresholdLabel.textContent}）。`);
+        updateStatus();
+      }
+      return;
+    }
+
+    const threshold = Number(ui.threshold.value);
+    const gapSamples = Number(ui.gap.value) * RATE;
+    const silent = rms < threshold;
+
+    if (!silent) {
+      state.silentSince = performance.now();
+      state.hinted = false;
+    } else if (!state.silentSince) {
+      state.silentSince = performance.now();
+    }
+    if (!state.hinted && performance.now() - state.silentSince > 6000) {
+      state.hinted = true;
+      showNotice("音声が検出されていません。マイクの入力レベルと「無音とみなす音量」を確認してください。");
+    }
+
+    state.chunks.push(samples);
+    state.segLen += samples.length;
+    if (silent) {
+      state.silenceLen += samples.length;
+    } else {
+      state.speechLen += samples.length;
+      state.silenceLen = 0;
+    }
+    updateStatus();
+
+    // まだ発話が始まっていない: 冒頭の無音を溜め込まない
+    if (state.speechLen === 0 && state.silenceLen > 1.0 * RATE) {
+      resetSegment();
+      return;
+    }
+    if (state.speechLen > 0 && state.silenceLen > gapSamples) {
+      flushSegment();
+      return;
+    }
+    if (state.segLen > MAX_SEG_SEC * RATE) flushSegment();
+  }
+
+  function flushSegment(force = false) {
+    if (state.segLen === 0) return;
+    const minSamples = MIN_SPEECH_SEC * RATE;
+    if (!force && state.speechLen < minSamples) { resetSegment(); return; }
+
+    const total = state.chunks.reduce((n, c) => n + c.length, 0);
+    let keep = total;
+    // 末尾の無音を削る（0.15 秒は残す）
+    const trim = Math.max(0, state.silenceLen - Math.round(0.15 * RATE));
+    keep = Math.max(0, total - trim);
+
+    const merged = new Float32Array(keep);
+    let offset = 0;
+    for (const chunk of state.chunks) {
+      if (offset >= keep) break;
+      const n = Math.min(chunk.length, keep - offset);
+      merged.set(chunk.subarray(0, n), offset);
+      offset += n;
+    }
+    resetSegment();
+    updateStatus();
+
+    const seconds = keep / RATE;
+    if (seconds < (force ? 0.1 : MIN_SPEECH_SEC)) return;
+    enqueue(encodeWav(merged), seconds);
+  }
+
+  // ---------------------------------------------------------------- network
+  function enqueue(blob, seconds) {
+    state.queue += 1;
+    updateStatus();
+    const keywords = ui.keywords.value.trim();
+    const query = keywords
+      ? "?keywords=" + encodeURIComponent(keywords.split(/[,、]/).map((s) => s.trim()).filter(Boolean).join(","))
+      : "";
+    state.chain = state.chain
+      .then(async () => {
+        const res = await fetch("/api/segment" + query, {
+          method: "POST",
+          headers: { "Content-Type": "audio/wav" },
+          body: blob,
+        });
+        let data = {};
+        try { data = await res.json(); } catch { /* ignore */ }
+        if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+        if (data.ja) {
+          addEntry(data);
+        } else {
+          showNotice("音声を認識できませんでした。マイクの音量と「無音とみなす音量」を確認してください。");
+        }
+      })
+      .catch((err) => {
+        state.failure = true;
+        setStatus("エラー", "error");
+        showBanner(`認識に失敗しました: ${escapeHtml(err.message)}`);
+        setTimeout(() => { state.failure = false; updateStatus(); }, 4000);
+      })
+      .finally(() => {
+        state.queue -= 1;
+        if (!state.failure) updateStatus();
+      });
+  }
+
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  }
+
+  // ---------------------------------------------------------------- microphones
+  const MIC_KEY = "sarashina-honyaku-mic";
+  function savedMic() {
+    try { return localStorage.getItem(MIC_KEY) || ""; } catch { return ""; }
+  }
+  function saveMic(id) {
+    try { localStorage.setItem(MIC_KEY, id); } catch { /* ignore */ }
+  }
+  async function refreshMics() {
+    if (!navigator.mediaDevices?.enumerateDevices) return;
+    let devices;
+    try {
+      devices = await navigator.mediaDevices.enumerateDevices();
+    } catch {
+      return;
+    }
+    const mics = devices.filter((d) => d.kind === "audioinput" && d.deviceId);
+    const current = ui.mic.value || savedMic();
+    ui.mic.replaceChildren(new Option("既定のマイク", ""));
+    mics.forEach((d, i) => ui.mic.add(new Option(d.label || `マイク ${i + 1}`, d.deviceId)));
+    if ([...ui.mic.options].some((o) => o.value === current)) ui.mic.value = current;
+    else ui.mic.value = "";
+  }
+
+  ui.mic.addEventListener("change", async () => {
+    saveMic(ui.mic.value);
+    if (!state.running) return;
+    showNotice("マイクを切り替えています…");
+    await stop();
+    await start();
+  });
+
+  navigator.mediaDevices?.addEventListener?.("devicechange", refreshMics);
+  refreshMics();
+
+  // ---------------------------------------------------------------- recording
+  async function start() {
+    if (state.running) return;
+    clearBanner();
+    resetSegment();
+    state.failure = false;
+
+    let stream;
+    const deviceId = ui.mic.value;
+    const audio = { channelCount: 1, echoCancellation: true, noiseSuppression: true, autoGainControl: true };
+    if (deviceId) audio.deviceId = { exact: deviceId };
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({ audio });
+    } catch (err) {
+      if (deviceId) {
+        // 選択したマイクが外れた場合などは既定のマイクで再試行する
+        try {
+          delete audio.deviceId;
+          stream = await navigator.mediaDevices.getUserMedia({ audio });
+          showNotice("選択したマイクを使用できないため、既定のマイクに切り替えました。");
+        } catch (err2) {
+          showBanner(`マイクを使用できません: ${escapeHtml(err2.message)}`);
+          return;
+        }
+      } else {
+        showBanner(`マイクを使用できません: ${escapeHtml(err.message)}`);
+        return;
+      }
+    }
+
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    await ctx.resume();
+    const source = ctx.createMediaStreamSource(stream);
+    const processor = ctx.createScriptProcessor(4096, 1, 1);
+    const sink = ctx.createGain();
+    sink.gain.value = 0;
+
+    processor.onaudioprocess = (e) => {
+      if (!state.running) return;
+      const input = e.inputBuffer.getChannelData(0);
+      feed(downsample(input, ctx.sampleRate));
+    };
+    source.connect(processor);
+    processor.connect(sink);
+    sink.connect(ctx.destination);
+
+    state.ctx = ctx;
+    state.stream = stream;
+    state.source = source;
+    state.processor = processor;
+    state.sink = sink;
+    state.running = true;
+    state.calibrating = ui.autoThreshold.checked;
+    state.calibRms = [];
+    state.calibLen = 0;
+    state.silentSince = performance.now();
+    state.hinted = false;
+
+    ui.start.disabled = true;
+    ui.stop.disabled = false;
+    ui.split.disabled = false;
+    updateStatus();
+    refreshMics();
+  }
+
+  async function stop() {
+    if (!state.running) return;
+    state.running = false;
+    if (state.calibrating) {
+      state.calibrating = false;
+      resetSegment();
+    } else {
+      flushSegment(true);
+    }
+
+    try { state.processor?.disconnect(); } catch { /* ignore */ }
+    try { state.source?.disconnect(); } catch { /* ignore */ }
+    try { state.sink?.disconnect(); } catch { /* ignore */ }
+    try { state.stream?.getTracks().forEach((t) => t.stop()); } catch { /* ignore */ }
+    try { await state.ctx?.close(); } catch { /* ignore */ }
+
+    state.ctx = state.stream = state.source = state.processor = state.sink = null;
+    ui.level.style.width = "0%";
+    ui.start.disabled = false;
+    ui.stop.disabled = true;
+    ui.split.disabled = true;
+    updateStatus();
+  }
+
+  ui.start.addEventListener("click", start);
+  ui.stop.addEventListener("click", stop);
+  ui.split.addEventListener("click", () => flushSegment());
+
+  ui.sample.addEventListener("click", async () => {
+    clearBanner();
+    try {
+      const res = await fetch("/sample.wav");
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      enqueue(await res.blob(), 6.6);
+    } catch (err) {
+      showBanner(`サンプル音声を読み込めませんでした: ${escapeHtml(err.message)}`);
+    }
+  });
+
+  ui.clear.addEventListener("click", () => {
+    if (!ui.entries.querySelector(".entry")) return;
+    ui.entries.innerHTML = '<div class="empty" id="empty">「録音開始」を押して日本語で話してください。発話の切れ目で自動的に区切って送信します。</div>';
+  });
+
+  ui.copyAll.addEventListener("click", async () => {
+    const entries = [...ui.entries.querySelectorAll(".entry")];
+    const text = entries.map((el) => {
+      const ja = el.querySelector(".ja").textContent;
+      const en = el.querySelector(".en").textContent;
+      return `${ja}\n${en}`;
+    }).join("\n\n---\n\n");
+    if (!text) return;
+    await copyText(text);
+    ui.copyAll.textContent = "コピー済み";
+    setTimeout(() => (ui.copyAll.textContent = "すべてコピー"), 1200);
+  });
+
+  // ---------------------------------------------------------------- health check
+  fetch("/api/health")
+    .then((r) => r.json())
+    .then((data) => {
+      if (!data.has_api_key) {
+        showBanner("SARASHINA_API_KEY が未設定です。プロジェクト直下の <code>.env</code> か環境変数に設定して、サーバーを再起動してください。");
+      }
+    })
+    .catch(() => {
+      showBanner("サーバーに接続できません。<code>julia --project=. bin/server.jl</code> で起動し、<code>http://127.0.0.1:8080</code> を開いてください（HTML ファイルを直接開いた場合も動きません）。");
+    });
+})();
+</script>
+</body>
+</html>
