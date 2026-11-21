@@ -20,10 +20,29 @@
 
 ## セットアップ
 
-Sarashina.jl を開発版として参照します。
+Sarashina.jl は GitHub から取得します（開発版の `main` ブランチを参照）。
 
 ```sh
 cd SarashinaHonyaku.jl
+julia --project=. -e 'using Pkg; Pkg.add(url="https://github.com/AtelierArith/Sarashina.jl"); Pkg.instantiate()'
+```
+
+このコマンドは `Project.toml` の `[sources]` を次のように書き換えます。
+
+```toml
+[sources]
+Sarashina = {rev = "main", url = "https://github.com/AtelierArith/Sarashina.jl"}
+```
+
+最新の `main` を取り込み直す場合:
+
+```sh
+julia --project=. -e 'using Pkg; Pkg.update("Sarashina")'
+```
+
+ローカルで Sarashina.jl を編集しながら動かす場合だけ、次のように開発版として参照します。
+
+```sh
 julia --project=. -e 'using Pkg; Pkg.develop(path="../Sarashina.jl"); Pkg.instantiate()'
 ```
 
